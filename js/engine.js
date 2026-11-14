@@ -91,14 +91,26 @@
   const newStats = () => ({ th: 0, la: 0, jth: 0, jla: 0, pth: 0, pla: 0, body: 0, dmg: 0, kd: 0 });
 
   /** Years past prime as of 2026, for "current form" sims: prime is taken as the era decade's 7th year. */
-  BX.yearsPastPrime = (f) => Math.max(0, 2026 - (parseInt(f.era, 10) + 7));
-  const DECLINE = { spd: 1.6, foot: 1.6, chin: 1.4, sta: 1.4, work: 1.4, def: 1.0, acc: 0.6, pow: 0.8, heart: 0.6, iq: 0 };
+  const TODAY = new Date('2026-11-14');
+  /** Age in whole years today, or null when the birth date is unknown. */
+  BX.age = (f) => {
+    if (!f.born) return null;
+    const b = new Date(f.born.length === 4 ? f.born + '-07-01' : f.born);
+    return Math.floor((TODAY - b) / (365.25 * 864e5));
+  };
+  /** Years of decline for "current form": past 33 by age, or past the prime decade when the age is unknown. */
+  BX.yearsPastPrime = (f) => {
+    const age = BX.age(f);
+    if (age != null) return Math.max(0, age - 33);
+    return Math.max(0, 2026 - (parseInt(f.era, 10) + 7));
+  };
+  const DECLINE = { spd: 0.9, foot: 0.9, chin: 0.8, sta: 0.8, work: 0.8, def: 0.5, acc: 0.3, pow: 0.4, heart: 0.3, iq: 0 };
 
   function makeCorner(f, divKey, side, current) {
     const fn = BX.fightNight(f, divKey);
     const a = Object.assign({}, f.attr);
     if (current) {
-      const yrs = Math.min(11, BX.yearsPastPrime(f));
+      const yrs = Math.min(12, BX.yearsPastPrime(f));
       for (const k in DECLINE) a[k] *= 1 - (DECLINE[k] * yrs) / 100;
     }
     if (fn.drain > 0.005) {

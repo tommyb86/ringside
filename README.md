@@ -28,4 +28,4 @@ Then open http://localhost:5173. Any static host works too (GitHub Pages, Cloudf
 | `js/app.js` | Matchup builder, playback, Corner Mode, scorecards, 1,000-sim odds. |
 
 Fights are deterministic per seed, so the URL hash (`#a=usyk&b=fury&seed=…`) replays the same fight.
-Records are verified to November 2026 for active fighters (see `SOURCES.md`) and are final career records for retired ones. Ratings describe each fighter at their prime.
+Records are verified to November 2026 for active fighters (see `SOURCES.md`) and are final career records for retired ones. Ratings describe each fighter at their prime; the Form setting's "Current" option ages them from 33 using birth dates in `js/births.js` (Wikidata).

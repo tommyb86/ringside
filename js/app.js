@@ -49,6 +49,12 @@
       <div class="attrs">${BX.ATTR_KEYS.map((k) => `<span class="lab">${BX.ATTR_LABELS[k]}</span><span class="bar"><i style="width:${f.attr[k]}%"></i></span><span class="val">${f.attr[k]}</span>`).join('')}</div>`;
   }
 
+  function ageTxt(f) {
+    const age = BX.age(f);
+    if (age == null) return "—";
+    return age > 75 ? `b. ${f.born.slice(0, 4)}` : String(age);
+  }
+
   function renderTape() {
     const a = F(state.A), b = F(state.B);
     const div = fightDiv();
@@ -73,8 +79,9 @@
       ${row('Style', BX.STYLES[a.style], BX.STYLES[b.style])}
       ${row('Weigh-in', `${na.weighIn} lb`, `${nb.weighIn} lb`)}
       ${row('Fight night', `~${na.lbs} lb`, `~${nb.lbs} lb`, na.lbs - nb.lbs)}
+      ${row('Age', ageTxt(a), ageTxt(b))}
       ${row('Prime', a.era, b.era)}
-      ${state.current ? `<div class="tape-note">Current form: ${[[a, BX.yearsPastPrime(a)], [b, BX.yearsPastPrime(b)]].map(([f, y]) => `${esc(f.short)} ${y ? y + ' yr' + (y > 1 ? 's' : '') + ' past prime' : 'in prime'}`).join(' · ')}</div>` : ''}
+      ${state.current ? `<div class="tape-note">Current form: ${[[a, BX.yearsPastPrime(a)], [b, BX.yearsPastPrime(b)]].map(([f, y]) => `${esc(f.short)} ${y ? y + ' yr' + (y > 1 ? 's' : '') + ' of decline' : 'no decline'}`).join(' · ')}</div>` : ''}
       ${notes.length ? `<div class="tape-note">${notes.map(esc).join('<br>')}</div>` : ''}`;
   }
 
