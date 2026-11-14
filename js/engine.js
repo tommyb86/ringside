@@ -110,8 +110,11 @@
     const fn = BX.fightNight(f, divKey);
     const a = Object.assign({}, f.attr);
     if (current) {
-      const yrs = Math.min(12, BX.yearsPastPrime(f));
-      for (const k in DECLINE) a[k] *= 1 - (DECLINE[k] * yrs) / 100;
+      // decline accelerates with age: gentle through the late 30s, steep past ~45, never below 15% of prime
+      const yrs = BX.yearsPastPrime(f);
+      const d = yrs + 0.05 * yrs * yrs;
+      for (const k in DECLINE) a[k] *= Math.max(0.15, 1 - (DECLINE[k] * d) / 100);
+      if (yrs > 15) a.iq *= Math.max(0.4, 1 - (yrs - 15) * 0.03); // even ring IQ can't cash cheques the body can't
     }
     if (fn.drain > 0.005) {
       a.sta *= 1 - fn.drain * 2.2;
@@ -121,9 +124,11 @@
     }
     if (fn.up > 0.02) a.pow *= 1 - fn.up * 0.6;
     if (fn.up > 0.06) { a.spd *= 1 - (fn.up - 0.06) * 0.4; a.foot *= 1 - (fn.up - 0.06) * 0.3; }
+    // an aged fighter starts the fight with less in the tank (and a lower ceiling), not just a lower rating
+    const tank = current ? Math.round(100 * Math.max(0.25, a.sta / f.attr.sta)) : 100;
     return {
       f, side, a, name: f.short, lbs: fn.lbs, weighIn: fn.weighIn, drain: fn.drain,
-      head: 100, headMax: 100, body: 100, stam: 100, stamMax: 100,
+      head: 100, headMax: 100, body: 100, stam: tank, stamMax: tank,
       stun: 0, hurt: 0, punish: 0, down: false,
       cut: 0, cutAccidental: false, cutEye: null,
       kd: 0, kdRound: 0, warnings: 0, deduct: {},
