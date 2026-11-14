@@ -31,6 +31,7 @@
       H: Hpx, arm: f.reach * 1.04 * 0.4, x: CENTER + (side === 'A' ? -200 : 200), tx: CENTER + (side === 'A' ? -200 : 200),
       bob: Math.random() * 6, punch: null, reacts: [], slip: null, block: null, lunge: 0,
       down: null, celebrate: false, dejected: false, hurt: false, cut: 0, clinch: false, walk: 0,
+      headHp: 100, bodyHp: 100, hitFlash: null,
     };
   }
 
@@ -94,6 +95,11 @@
       playFrame(fr, ms, countMs) {
         if (!fighters) return ms;
         const A = fighters.A, B = fighters.B;
+        const syncDamage = () => {
+          if (!fr.A) return;
+          for (const [F, s] of [[A, fr.A], [B, fr.B]]) { F.headHp = s.head; F.bodyHp = s.body; F.cut = s.cut; }
+        };
+        if (fr.type !== 'tick') syncDamage();
         if (fr.type === 'roundStart') {
           ref.show = false;
           for (const F of [A, B]) { F.down = null; F.dejected = false; F.celebrate = false; }
@@ -109,7 +115,7 @@
         if (fr.type === 'end') return ms;
 
         setPositions(fr, false);
-        A.hurt = fr.A.hurt; B.hurt = fr.B.hurt; A.cut = fr.A.cut; B.cut = fr.B.cut;
+        A.hurt = fr.A.hurt; B.hurt = fr.B.hurt;
         const clinch = fr.ev.some((e) => e.type === 'clinch');
         A.clinch = B.clinch = clinch;
         excitement = Math.max(0.1, excitement * 0.92);
@@ -124,6 +130,8 @@
           at(i * slot, () => throwAnim(a, dur));
         });
         let need = acts.length * slot + 60;
+        // damage visuals build up shot by shot (in throwAnim); re-sync to the engine's numbers once the moment ends
+        at(need, syncDamage);
         // events after punches
         if (kdIdx >= 0) {
           const kd = fr.ev[kdIdx];
@@ -213,10 +221,15 @@
       at(hit, () => {
         if (a.res === 'land') {
           const amt = clamp(a.impact / 6, 0.15, 1.6);
-          O.reacts.push({ t0: performance.now(), dur: 260 + amt * 160, amt, body: a.target === 'body' });
+          const body = a.target === 'body';
+          O.reacts.push({ t0: performance.now(), dur: 260 + amt * 160, amt, body });
+          O.hitFlash = { t0: performance.now(), body, amt: clamp(amt, 0.35, 1.3) };
+          if (body) O.bodyHp = Math.max(0, O.bodyHp - a.impact * 0.2);
+          else O.headHp = Math.max(0, O.headHp - a.impact * 0.24);
           const hp = headPos(O);
-          const x = a.target === 'body' ? hp.bx : hp.x, y = a.target === 'body' ? hp.by : hp.y;
+          const x = body ? hp.bx : hp.x, y = body ? hp.by : hp.y;
           spray(x, y, F.face, a.flush ? 16 : 6 + Math.round(amt * 4), a.flush);
+          if (!body && O.cut > 0 && a.type !== 'jab') spray(hp.x + O.face * 6, hp.y - 6, F.face, 3 + Math.round(O.cut / 2), false, false, 'rgba(190,20,30,.95)');
           if (a.flush) { shake = Math.max(shake, 5 + amt * 4); excitement = Math.max(excitement, 0.7); popFlashes(6); }
           if (a.perfect) { shake = 12; }
         } else if (a.res === 'block') {
@@ -242,11 +255,11 @@
     }
     function boom(k) { shake = 10 * k; }
 
-    function spray(x, y, dir, n, big, glove) {
+    function spray(x, y, dir, n, big, glove, color) {
       for (let i = 0; i < n; i++) {
         effects.push({
           x, y, vx: dir * (0.6 + Math.random() * 2.6) * (big ? 1.6 : 1), vy: -1.4 + Math.random() * 2.2,
-          life: 1, decay: 0.025 + Math.random() * 0.03, r: glove ? 1.5 : 1 + Math.random() * 2, c: glove ? 'rgba(255,255,255,.7)' : 'rgba(225,240,255,.9)',
+          life: 1, decay: 0.025 + Math.random() * 0.03, r: glove ? 1.5 : 1 + Math.random() * 2, c: color || (glove ? 'rgba(255,255,255,.7)' : 'rgba(225,240,255,.9)'),
         });
       }
       if (big) effects.push({ ring: true, x, y, life: 1, decay: 0.06, r: 6 });
@@ -410,18 +423,40 @@
       // torso
       ctx.strokeStyle = body; ctx.lineWidth = h * 0.16;
       ctx.beginPath(); ctx.moveTo(p.hip.x, p.hip.y - h * 0.04); ctx.lineTo(p.shoulder.x, p.shoulder.y + h * 0.05); ctx.stroke();
-      // trunks
+      // body welts (ribs) build up with body damage
+      const bd = clamp((100 - F.bodyHp) / 70, 0, 1);
+      const ribs = { x: lerp(p.hip.x, p.shoulder.x, 0.5) + f * h * 0.04, y: lerp(p.hip.y, p.shoulder.y, 0.5) };
+      if (bd > 0.08) {
+        ctx.fillStyle = `rgba(175,55,75,${0.18 + bd * 0.45})`;
+        const blot = (dx, dy, rx, ry) => { ctx.beginPath(); ctx.ellipse(ribs.x + f * dx * h, ribs.y + dy * h, rx * h, ry * h, 0.5 * f, 0, Math.PI * 2); ctx.fill(); };
+        blot(0, 0, 0.014 + bd * 0.016, 0.011 + bd * 0.012);
+        if (bd > 0.3) blot(-0.022, 0.035, 0.012 + bd * 0.01, 0.009 + bd * 0.008);
+        if (bd > 0.55) blot(0.006, -0.04, 0.011 + bd * 0.008, 0.008 + bd * 0.007);
+      }
+      // trunks: a hip block plus one short leg down each thigh
+      const short = (hipPt, K, col) => {
+        const end = { x: lerp(hipPt.x, K.ex, 0.55), y: lerp(hipPt.y, K.ey, 0.55) };
+        ctx.strokeStyle = col; ctx.lineCap = 'butt'; ctx.lineWidth = h * 0.11;
+        ctx.beginPath(); ctx.moveTo(hipPt.x, hipPt.y - h * 0.01); ctx.lineTo(end.x, end.y); ctx.stroke();
+        // hem trim
+        const ang = Math.atan2(end.y - hipPt.y, end.x - hipPt.x);
+        ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = h * 0.012;
+        const nx = -Math.sin(ang) * h * 0.055, ny = Math.cos(ang) * h * 0.055;
+        ctx.beginPath(); ctx.moveTo(end.x + nx, end.y + ny); ctx.lineTo(end.x - nx, end.y - ny); ctx.stroke();
+        ctx.lineCap = 'round';
+      };
+      short(p.hipB, p.KB, shade(trunk, -0.3));
+      short(p.hipF, p.KF, trunk);
+      const tw = h * 0.085;
       ctx.fillStyle = trunk;
-      const tw = h * 0.1;
       ctx.beginPath();
-      ctx.moveTo(p.hip.x - tw, p.hip.y - h * 0.07);
-      ctx.lineTo(p.hip.x + tw, p.hip.y - h * 0.07);
-      ctx.lineTo(p.KF.ex + f * h * 0.03, p.KF.ey - h * 0.06);
-      ctx.lineTo(p.hip.x - f * tw * 0.2, p.hip.y + h * 0.04);
-      ctx.lineTo(p.KB.ex - f * h * 0.03, p.KB.ey - h * 0.07);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,.85)';
-      ctx.fillRect(p.hip.x - tw, p.hip.y - h * 0.085, tw * 2, h * 0.022);
+      if (ctx.roundRect) ctx.roundRect(p.hip.x - tw, p.hip.y - h * 0.08, tw * 2, h * 0.11, h * 0.025);
+      else ctx.rect(p.hip.x - tw, p.hip.y - h * 0.08, tw * 2, h * 0.11);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.9)';
+      ctx.fillRect(p.hip.x - tw, p.hip.y - h * 0.085, tw * 2, h * 0.024);
+      ctx.fillStyle = 'rgba(255,255,255,.35)';
+      ctx.fillRect(p.hip.x + f * tw * 0.55 - h * 0.006, p.hip.y - h * 0.06, h * 0.012, h * 0.085);
       // head
       ctx.fillStyle = body;
       ctx.beginPath(); ctx.arc(p.head.x, p.head.y, p.head.r, 0, Math.PI * 2); ctx.fill();
@@ -430,11 +465,49 @@
       // rim light on head
       ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(p.head.x, p.head.y, p.head.r - 1, -Math.PI * 0.9, -Math.PI * 0.2); ctx.stroke();
-      // cut
+      // facial damage: bruising round the eye, then the cheek, swelling as condition drops
+      const r = p.head.r;
+      const hd = clamp((100 - F.headHp) / 75, 0, 1);
+      if (hd > 0.06) {
+        // whole face reddens as the beating mounts
+        ctx.fillStyle = `rgba(150,40,60,${hd * 0.32})`;
+        ctx.beginPath(); ctx.arc(p.head.x, p.head.y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = `rgba(205,70,95,${0.22 + hd * 0.55})`;
+        ctx.beginPath(); ctx.ellipse(p.head.x + f * r * 0.48, p.head.y - r * 0.38, r * (0.22 + hd * 0.3), r * (0.15 + hd * 0.2), 0, 0, Math.PI * 2); ctx.fill();
+        if (hd > 0.35) {
+          ctx.fillStyle = `rgba(150,60,140,${0.25 + hd * 0.4})`;
+          ctx.beginPath(); ctx.ellipse(p.head.x + f * r * 0.45, p.head.y + r * 0.32, r * 0.2 * hd + r * 0.08, r * 0.15 * hd + r * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        if (hd > 0.6) {
+          // eye swelling shut: a lump breaking the outline of the head
+          ctx.fillStyle = `rgba(185,70,95,${0.6 + hd * 0.3})`;
+          ctx.beginPath(); ctx.ellipse(p.head.x + f * r * 0.86, p.head.y - r * 0.38, r * 0.2 * hd, r * 0.17 * hd, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      // cut + blood trickle
       if (F.cut > 0) {
-        ctx.fillStyle = `rgba(200,20,30,${clamp(0.5 + F.cut / 12, 0.5, 1)})`;
-        ctx.beginPath(); ctx.ellipse(p.head.x + f * p.head.r * 0.55, p.head.y - p.head.r * 0.25, 2.2 + F.cut * 0.25, 1.6, 0, 0, Math.PI * 2); ctx.fill();
-        if (F.cut > 4) { ctx.fillRect(p.head.x + f * p.head.r * 0.5, p.head.y - p.head.r * 0.2, 1.4, p.head.r * 0.7); }
+        const cx = p.head.x + f * r * 0.55, cy = p.head.y - r * 0.35;
+        ctx.fillStyle = `rgba(210,20,35,${clamp(0.6 + F.cut / 12, 0.6, 1)})`;
+        ctx.beginPath(); ctx.ellipse(cx, cy, 2.2 + F.cut * 0.3, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+        if (F.cut > 2) {
+          ctx.strokeStyle = 'rgba(190,15,30,.85)'; ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.quadraticCurveTo(cx + f * 2, cy + r * 0.5, cx - f * 1, cy + r * clamp(0.4 + F.cut * 0.12, 0.4, 1.4)); ctx.stroke();
+        }
+        if (F.cut > 4 && Math.random() < 0.025 + F.cut * 0.004) effects.push({ x: cx, y: cy + r, vx: f * 0.2, vy: 0.4, life: 1, decay: 0.03, r: 1.4, c: 'rgba(190,15,30,.9)' });
+      }
+      // impact flash on the spot that just got hit
+      if (F.hitFlash) {
+        const fp = clamp((now - F.hitFlash.t0) / 200, 0, 1);
+        if (fp >= 1) F.hitFlash = null;
+        else {
+          const at = F.hitFlash.body ? ribs : { x: p.head.x, y: p.head.y };
+          const rad = (F.hitFlash.body ? h * 0.07 : r * 1.25) * (0.8 + fp * 0.5);
+          const g = ctx.createRadialGradient(at.x, at.y, 0, at.x, at.y, rad);
+          g.addColorStop(0, `rgba(255,110,110,${0.7 * F.hitFlash.amt * (1 - fp)})`);
+          g.addColorStop(1, 'rgba(255,80,80,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(at.x, at.y, rad, 0, Math.PI * 2); ctx.fill();
+        }
       }
       // near (lead) arm
       limb(p.sLead, { x: p.L.ex, y: p.L.ey }, { x: p.L.hx, y: p.L.hy }, h * 0.058, body);
@@ -641,7 +714,7 @@
         // the punching fighter is drawn on top
         const order = fighters.B.punch && !fighters.A.punch ? [fighters.A, fighters.B] : [fighters.B, fighters.A];
         drawReferee(now);
-        for (const F of order) drawFighter(F, now);
+        for (const F of order) { ctx.save(); try { drawFighter(F, now); } catch (e) { console.warn(e); } ctx.restore(); }
       }
       drawFront();
       drawEffects();
@@ -650,6 +723,7 @@
     }
     raf = requestAnimationFrame(loop);
     api.destroy = () => cancelAnimationFrame(raf);
+    api._fighters = () => fighters;
     return api;
   };
 })(window);

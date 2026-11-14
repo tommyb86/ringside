@@ -222,6 +222,7 @@
 
   // ── fight playback ─────────────────────────────────────────
   const ring = BX.Ring($('#ring'));
+  BX.ring = ring; // handy for poking at the renderer from devtools
 
   $('#startBtn').addEventListener('click', () => startFight());
   $('#backBtn').addEventListener('click', backToSetup);
