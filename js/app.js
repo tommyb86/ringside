@@ -237,6 +237,7 @@
 
   function startFight(seed) {
     stopPlayback();
+    state.speed = +$('#speedSel').value;
     const a = F(state.A), b = F(state.B);
     state.seed = seed || (Math.random() * 1e9) >>> 0;
     const control = state.mode === 'watch' ? {} : { [state.mode]: true };
