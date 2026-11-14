@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ringside Boxing Sim</title>
+  <meta name="description" content="Sim any boxing match, past or present, round by round — with play-by-play, an animated ring, three judges' scorecards, and Corner Mode where you call the shots between rounds." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <a class="logo" href="#" id="homeLink"><span class="logo-mark">●</span> RINGSIDE</a>
+      <p class="tagline">Boxing fight simulator — dream fights across every weight class and era, round by round.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- ── matchup builder ─────────────────────────────── -->
+    <section id="setup">
+      <div class="matchup">
+        <article class="corner-card red" id="cornerA"></article>
+        <div class="tape" id="tape"></div>
+        <article class="corner-card blue" id="cornerB"></article>
+      </div>
+
+      <div class="card settings">
+        <div class="field">
+          <label for="divSel">Weight class</label>
+          <select id="divSel"></select>
+        </div>
+        <div class="field">
+          <label for="roundsSel">Rounds</label>
+          <select id="roundsSel">
+            <option>4</option><option>6</option><option>8</option><option>10</option><option selected>12</option><option>15</option>
+          </select>
+        </div>
+        <div class="field grow">
+          <label>Mode</label>
+          <div class="seg" id="modeSeg">
+            <button data-mode="watch" class="on">Watch</button>
+            <button data-mode="A">Corner Mode · <span class="dot red"></span> Red</button>
+            <button data-mode="B">Corner Mode · <span class="dot blue"></span> Blue</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="speedSel">Speed</label>
+          <select id="speedSel">
+            <option value="1">1× (real time)</option>
+            <option value="3">3×</option>
+            <option value="6" selected>6×</option>
+            <option value="12">12×</option>
+            <option value="30">30×</option>
+            <option value="0">Instant</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mode-explainer" id="modeExplainer"></div>
+
+      <div class="actions">
+        <button class="btn primary" id="startBtn">Start the fight</button>
+        <button class="btn" id="oddsBtn">Run 1,000 sims</button>
+        <button class="btn ghost" id="randomBtn">Random dream fight</button>
+        <button class="btn ghost" id="swapBtn">Swap corners</button>
+      </div>
+
+      <div class="card odds" id="odds" hidden></div>
+    </section>
+
+    <!-- ── fight night ─────────────────────────────────── -->
+    <section id="fight" hidden>
+      <div class="fight-top">
+        <button class="btn ghost small" id="backBtn">← Matchup</button>
+        <div class="fight-title" id="fightTitle"></div>
+      </div>
+      <div class="fight-grid">
+        <div class="stage">
+          <div class="scorebug">
+            <div class="sb-side red"><span class="sb-name" id="sbA"></span><span class="sb-kd" id="sbKdA"></span></div>
+            <div class="sb-mid"><span id="sbRound">R1</span><span class="sb-clock" id="sbClock">0:00</span></div>
+            <div class="sb-side blue"><span class="sb-kd" id="sbKdB"></span><span class="sb-name" id="sbB"></span></div>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="ring" width="960" height="480"></canvas>
+            <div class="corner-panel" id="cornerPanel" hidden></div>
+          </div>
+          <div class="meters">
+            <div class="meter red" id="meterA"></div>
+            <div class="meter blue" id="meterB"></div>
+          </div>
+          <div class="playbar">
+            <button class="btn small" id="pauseBtn">Pause</button>
+            <div class="seg small" id="speedSeg">
+              <button data-speed="1">1×</button><button data-speed="3">3×</button><button data-speed="6">6×</button><button data-speed="12">12×</button><button data-speed="30">30×</button>
+            </div>
+            <button class="btn small ghost" id="skipRoundBtn">Skip round</button>
+            <button class="btn small ghost" id="skipEndBtn">Skip to result</button>
+          </div>
+        </div>
+        <aside class="feed card">
+          <div class="feed-head">
+            <h2>Play-by-play</h2>
+            <label class="toggle"><input type="checkbox" id="keyOnly" /> Key moments</label>
+          </div>
+          <div class="feed-list" id="feed"></div>
+        </aside>
+      </div>
+
+      <div class="result card" id="resultCard" hidden></div>
+
+      <div class="post-grid">
+        <div class="card">
+          <div class="card-head">
+            <h2>Judges' scorecards</h2>
+            <label class="toggle"><input type="checkbox" id="hideCards" /> Hide until the final bell</label>
+          </div>
+          <div class="table-wrap" id="cards"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Punch stats</h2></div>
+          <div id="punchStats"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      Records are as of mid-2026 for active fighters and final career records for retired ones. Ratings are hand-calibrated from CompuBox-style output and accuracy, KO ratios and each fighter's prime. Everything lives in <code>js/data.js</code>.
+    </footer>
+  </main>
+
+  <!-- fighter picker -->
+  <div class="modal" id="picker" hidden>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2 id="pickerTitle">Choose a fighter</h2>
+        <button class="btn ghost small" id="pickerClose">Close</button>
+      </div>
+      <div class="filters">
+        <input type="search" id="pickSearch" placeholder="Search name or nickname…" />
+        <select id="pickDiv"></select>
+        <select id="pickCountry"></select>
+        <select id="pickEra"></select>
+      </div>
+      <div class="pick-list" id="pickList"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ring.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
