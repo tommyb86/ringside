@@ -418,7 +418,7 @@
         const won = k === 0 ? c[0] > c[1] : c[1] > c[0];
         return `<td class="${won ? 'win' : ''}">${c[k]}</td>`;
       };
-      html += `<tr><td class="judge" rowspan="2">${esc(j.name)}</td>${Array.from({ length: n }, (_, i) => cell(i, 0)).join('')}<td class="tot ra">${ta || '–'}</td></tr>`;
+      html += `<tr><td class="judge" rowspan="2" title="${esc(j.name)}"><span class="jn-full">${esc(j.name)}</span><span class="jn-short">${esc(j.name.split(" ").slice(-1)[0])}</span></td>${Array.from({ length: n }, (_, i) => cell(i, 0)).join('')}<td class="tot ra">${ta || '–'}</td></tr>`;
       html += `<tr>${Array.from({ length: n }, (_, i) => cell(i, 1)).join('')}<td class="tot rb">${tb || '–'}</td></tr>`;
     }
     html += `</tbody></table><div style="margin-top:8px;font-size:12px;color:var(--muted)">Top row <span class="ra">${esc(a)}</span>, bottom row <span class="rb">${esc(b)}</span>. Gold = round winner. 10-point must system.</div>`;
