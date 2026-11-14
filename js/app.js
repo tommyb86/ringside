@@ -7,7 +7,7 @@
   const STOP = ['KO', 'TKO', 'RTD'];
 
   const state = {
-    A: 'usyk', B: 'fury', div: 'auto', rounds: 12, mode: 'watch', speed: 6,
+    A: 'usyk', B: 'fury', div: 'auto', rounds: 12, current: false, mode: 'watch', speed: 6,
     fight: null, queue: [], timer: 0, paused: false, playing: false, sum: null, seed: 0, lastRoundShown: 0,
   };
 
@@ -74,6 +74,7 @@
       ${row('Weigh-in', `${na.weighIn} lb`, `${nb.weighIn} lb`)}
       ${row('Fight night', `~${na.lbs} lb`, `~${nb.lbs} lb`, na.lbs - nb.lbs)}
       ${row('Prime', a.era, b.era)}
+      ${state.current ? `<div class="tape-note">Current form: ${[[a, BX.yearsPastPrime(a)], [b, BX.yearsPastPrime(b)]].map(([f, y]) => `${esc(f.short)} ${y ? y + ' yr' + (y > 1 ? 's' : '') + ' past prime' : 'in prime'}`).join(' · ')}</div>` : ''}
       ${notes.length ? `<div class="tape-note">${notes.map(esc).join('<br>')}</div>` : ''}`;
   }
 
@@ -87,6 +88,7 @@
   function renderSetup() {
     renderCorner('A'); renderCorner('B'); renderTape(); renderModeExplainer();
     divSel.value = state.div;
+    $("#formSel").value = state.current ? "current" : "peak";
     $('#roundsSel').value = String(state.rounds);
     document.querySelectorAll('#modeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === state.mode));
     $('#odds').hidden = true;
@@ -98,6 +100,7 @@
   });
   divSel.addEventListener('change', () => { state.div = divSel.value; renderTape(); $('#odds').hidden = true; });
   $('#roundsSel').addEventListener('change', (e) => { state.rounds = +e.target.value; renderTape(); $('#odds').hidden = true; });
+  $('#formSel').addEventListener('change', (e) => { state.current = e.target.value === 'current'; $('#odds').hidden = true; renderTape(); });
   $('#speedSel').addEventListener('change', (e) => { state.speed = +e.target.value; });
   $('#modeSeg').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
@@ -173,7 +176,7 @@
     const step = () => {
       const end = Math.min(n, i + 40);
       for (; i < end; i++) {
-        const r = BX.simulate({ a, b, div, rounds, seed: (seed0 + i * 7919) >>> 0, quick: true }).result;
+        const r = BX.simulate({ a, b, div, rounds, seed: (seed0 + i * 7919) >>> 0, quick: true, current: state.current }).result;
         const stop = STOP.includes(r.method);
         if (r.winner) { out[r.winner].win++; out[r.winner][stop ? 'ko' : 'dec']++; } else out.draw++;
         if (stop) { out.stop++; out.sumR += r.round; out.byRound[r.round]++; }
@@ -242,7 +245,7 @@
     const a = F(state.A), b = F(state.B);
     state.seed = seed || (Math.random() * 1e9) >>> 0;
     const control = state.mode === 'watch' ? {} : { [state.mode]: true };
-    state.fight = BX.createFight({ a, b, div: fightDiv(), rounds: state.rounds, seed: state.seed, control });
+    state.fight = BX.createFight({ a, b, div: fightDiv(), rounds: state.rounds, seed: state.seed, control, current: state.current });
     state.sum = state.fight.summary();
     state.queue = []; state.paused = false; state.lastRoundShown = 0; state.finished = false; state.afterQueue = null; state.pendingTac = null; state.tactic = { A: 'auto', B: 'auto' };
     $('#setup').hidden = true; $('#fight').hidden = false;
@@ -259,7 +262,7 @@
     const blank = { head: 100, headMax: 100, stam: 100, body: 100, hurt: false, cut: 0, kd: 0, th: 0, la: 0, pth: 0, pla: 0, jth: 0, jla: 0 };
     renderMeters({ A: blank, B: blank });
     renderCards(0); renderPunchStats();
-    location.hash = `a=${state.A}&b=${state.B}&div=${fightDiv()}&r=${state.rounds}&seed=${state.seed}&mode=${state.mode}`;
+    location.hash = `a=${state.A}&b=${state.B}&div=${fightDiv()}&r=${state.rounds}&seed=${state.seed}&mode=${state.mode}${state.current ? "&form=current" : ""}`;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     state.playing = true;
     if (state.mode !== 'watch') {
@@ -581,6 +584,7 @@
     if (h.get('div') && BX.divByKey(h.get('div'))) state.div = h.get('div');
     if (h.get('r')) state.rounds = Math.max(1, Math.min(15, +h.get('r') || 12));
     if (h.get('mode') && ['watch', 'A', 'B'].includes(h.get('mode'))) state.mode = h.get('mode');
+    state.current = h.get('form') === 'current';
     return h.get('seed') ? +h.get('seed') : 0;
   }
   const seed = readHash();

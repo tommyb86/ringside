@@ -90,9 +90,17 @@
 
   const newStats = () => ({ th: 0, la: 0, jth: 0, jla: 0, pth: 0, pla: 0, body: 0, dmg: 0, kd: 0 });
 
-  function makeCorner(f, divKey, side) {
+  /** Years past prime as of 2026, for "current form" sims: prime is taken as the era decade's 7th year. */
+  BX.yearsPastPrime = (f) => Math.max(0, 2026 - (parseInt(f.era, 10) + 7));
+  const DECLINE = { spd: 1.6, foot: 1.6, chin: 1.4, sta: 1.4, work: 1.4, def: 1.0, acc: 0.6, pow: 0.8, heart: 0.6, iq: 0 };
+
+  function makeCorner(f, divKey, side, current) {
     const fn = BX.fightNight(f, divKey);
     const a = Object.assign({}, f.attr);
+    if (current) {
+      const yrs = Math.min(11, BX.yearsPastPrime(f));
+      for (const k in DECLINE) a[k] *= 1 - (DECLINE[k] * yrs) / 100;
+    }
     if (fn.drain > 0.005) {
       a.sta *= 1 - fn.drain * 2.2;
       a.chin *= 1 - fn.drain * 1.5;
@@ -171,8 +179,8 @@
     const nRounds = opts.rounds || 12;
     const div = opts.div || BX.defaultDivision(opts.a, opts.b);
 
-    const A = makeCorner(opts.a, div, 'A');
-    const B = makeCorner(opts.b, div, 'B');
+    const A = makeCorner(opts.a, div, 'A', opts.current);
+    const B = makeCorner(opts.b, div, 'B', opts.current);
     A.opp = B; B.opp = A;
     // brothers / namesakes: "Charlo lands on Charlo" is unreadable, so fall back to full names
     if (A.name === B.name) { A.name = A.f.name.replace(/\s*\(.*\)$/, ''); B.name = B.f.name.replace(/\s*\(.*\)$/, ''); }
