@@ -21,10 +21,11 @@ Then open http://localhost:5173. Any static host works too (GitHub Pages, Cloudf
 
 | File | What it does |
 | --- | --- |
-| `js/data.js` | 112 boxers across all 17 divisions: record, height, reach, stance, style, era and 10 ratings. Edit freely. |
+| `js/data.js` | 557 boxers across all 17 divisions, 1900s to today: record, height, reach, stance, style, era and 10 ratings. Edit freely. |
+| `SOURCES.md` | Where each researched fighter's record and measurements came from, how current it is, and the corrections made to the original roster. |
 | `js/engine.js` | Seeded fight engine. 3-second moments: range battle, combinations, counters, damage/stun, knockdowns and counts, cuts, fatigue, referee/corner/doctor stoppages, judges with different scoring tendencies. Weight classes matter: drained fighters lose stamina and chin, and fighters moving up lose pop and give away size. |
 | `js/ring.js` | Canvas renderer: procedurally animated fighters, referee, counts, crowd. |
 | `js/app.js` | Matchup builder, playback, Corner Mode, scorecards, 1,000-sim odds. |
 
 Fights are deterministic per seed, so the URL hash (`#a=usyk&b=fury&seed=…`) replays the same fight.
-Records reflect mid-2026 for active fighters and final career records for retired ones.
+Records are verified to November 2026 for active fighters (see `SOURCES.md`) and are final career records for retired ones. Ratings describe each fighter at their prime.
