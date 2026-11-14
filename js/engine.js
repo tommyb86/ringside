@@ -174,6 +174,8 @@
     const A = makeCorner(opts.a, div, 'A');
     const B = makeCorner(opts.b, div, 'B');
     A.opp = B; B.opp = A;
+    // brothers / namesakes: "Charlo lands on Charlo" is unreadable, so fall back to full names
+    if (A.name === B.name) { A.name = A.f.name.replace(/\s*\(.*\)$/, ''); B.name = B.f.name.replace(/\s*\(.*\)$/, ''); }
     // night-to-night form: nobody fights at exactly their rating every time
     for (const s of [A, B]) {
       s.form = gauss() * 3.5;
@@ -630,7 +632,7 @@
         if (rel < 0.025 && rand() < 0.3) { sa = 10; sb = 10; }
         else if (a > b) { sa = 10; sb = a / b > 2.8 && a - b > 12 && rand() < 0.35 ? 8 : 9; }
         else { sb = 10; sa = b / a > 2.8 && b - a > 12 && rand() < 0.35 ? 8 : 9; }
-        const net = B.rs.kd - A.rs.kd; // knockdowns scored: positive favours A
+        const net = A.rs.kd - B.rs.kd; // rs.kd = knockdowns that fighter SCORED, so positive favours A
         if (net !== 0) {
           const w = net > 0 ? 'A' : 'B';
           const k = Math.abs(net);
@@ -717,8 +719,12 @@
       newFrame('roundEnd');
       scoreRound(false);
       const ra = A.rs, rb = B.rs;
-      const better = ra.dmg + ra.la * 0.3 > rb.dmg + rb.la * 0.3 ? A : B;
-      say('round', `END OF ROUND ${round}. ${A.name} landed ${ra.la}/${ra.th}, ${B.name} ${rb.la}/${rb.th}. ${better.name} had the better of it.`);
+      // the round summary follows the judges' actual cards
+      const votes = judges.map((j) => { const c = j.cards[j.cards.length - 1]; return Math.sign(c[0] - c[1]); });
+      const forA = votes.filter((v) => v > 0).length, forB = votes.filter((v) => v < 0).length;
+      const verdict = forA === 3 ? `All three judges give it to ${A.name}.` : forB === 3 ? `All three judges give it to ${B.name}.` : forA > forB ? `A close one, edged by ${A.name} on most cards.` : forB > forA ? `A close one, edged by ${B.name} on most cards.` : 'Too close to call.';
+      const kdNote = [[A, ra], [B, rb]].filter(([, r]) => r.kd).map(([f, r]) => ` ${f.name} scored ${r.kd > 1 ? r.kd + ' knockdowns' : 'a knockdown'}.`).join('');
+      say('round', `END OF ROUND ${round}. ${A.name} landed ${ra.la}/${ra.th}, ${B.name} ${rb.la}/${rb.th}. ${verdict}${kdNote}`);
       A.rounds.push({ ...A.rs }); B.rounds.push({ ...B.rs });
 
       // recovery + corner / doctor decisions
